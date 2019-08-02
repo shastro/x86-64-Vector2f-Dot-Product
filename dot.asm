@@ -66,7 +66,7 @@ BUFLEN equ 1000
     xor r9, r9
 
     mov rax, %1
-    mov rcx, %2
+    mov rcx, %2 ; 
 
     div r9
 
@@ -77,8 +77,24 @@ BUFLEN equ 1000
 ;Function prologue should be called at the start of every subroutine, handles the creation of a stack frame
 ;Pushes all callee reserved Registers
 ;Combined with func_epilogue the stack should be in the same state it was in when the subroutine was started eg rsp rbp should be unchanged
-%macro func_prologue
+%macro push_callees 0
+    ;Pushing callee-saved registers onto the stack, these are registers that the callee cannot allow changes to be made to
+    push rbx
+    push rbp
+    push r12
+    push r13
+    push r14
+    push r15
+%endmacro
 
+;Epilogue for use at the end of a Function
+%macro pop_callees 0
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbp
+    pop rbx
 %endmacro
 ;==========================================================================================
 ;Section Declarations
@@ -106,6 +122,7 @@ section .text
 
 ;Strlen expects the string's address to be in rdi register, it will use rcx as a temporary counter, and place the value in rax
 _RDIstrlen:
+    push_callees ;Push all callee-saved
     push rcx     ;Put rcx's value onto the stack, so the data isnt lost
     xor rcx, rcx ;Set counter to zero
 
@@ -122,13 +139,14 @@ _RDIstrlen:
     _null:      ;Label for when null is hit
         mov rax, rcx
         pop rcx
+        pop_callees
         ret
 
 ;Returns the index of any given token in a contigous array of bytes
 ;Input buffer address in rdi, token should be stored in dl
 ;Output is in rax
 _token_index:
-    
+    push_callees
     xor rax, rax ;Setting rax to zero, rax will hold the index
     xor rcx, rcx
     xor cl, cl
@@ -151,6 +169,7 @@ _token_index:
         ret
 
     _token_found:
+        pop_callees
         ret
 
 
@@ -206,7 +225,7 @@ _R8print_number:
     ;Rcx will be a counter of the number of stack items
 
     ;Create stack frame
-    push rbx
+    ;push rbx
 
     push rcx
     xor rcx, rcx  ;Set counter to zero
@@ -221,11 +240,12 @@ _R8print_number:
         cmp rax, 0 ;Have finished processing digits onto stack
         jz _printloop
 
-        mov r10, 10
-        div r10        ;Divides rax by 10, stores quotient in rax, stores remainder in rdx
+        mov rdi, 10
+        div rdi      ;Divides rax by 10, stores quotient in rax, stores remainder in rdx
 
 
         push rdx      ;Pushes the last digit onto the stack
+        xor rdx,rdx
 
         inc rcx ;Increment the counter
 
@@ -252,7 +272,7 @@ _R8print_number:
     _end:
 
     pop rcx
-    pop rsp ;Pop rbx's value into rsp
+    ;pop rsp ;Pop rbx's value into rsp
     ret
 
 
@@ -275,4 +295,9 @@ _start:
 
     mov r8, 125
     call _R8print_number
+
+    ; mov rax, 12
+    ; mov rdx, 0
+    ; mov rdi,10
+    ; div rdi
     exit 0
