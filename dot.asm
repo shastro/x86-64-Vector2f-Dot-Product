@@ -4,6 +4,7 @@
 ; $ nasm -f elf64 *.asm && ld *.o -o * && ./* 
 ; debug flags = (-g -Fdwarf)
 
+
 ;Macro Defintions
 BUFLEN equ 1000
 ;Exit Macro
@@ -23,6 +24,13 @@ BUFLEN equ 1000
     mov rdi, 1   ;id of std_out
     mov rsi, %1  ;pointer to string
     syscall
+%endmacro
+
+;Print a single byte in its ascii form
+%macro print_char 1
+    mov al, %1
+    call _ALDigit_to_ascii
+    call _RAXprint_char
 %endmacro
 
 ;Gets a string buffer from stdin and stores it in rax
@@ -47,6 +55,31 @@ BUFLEN equ 1000
 %endmacro
 
 
+;Calls div, quotient will be in RAX, remainder in RDX
+;Destroys content in both RAX and RDX
+%macro u_div 2
+    
+    xor rax, rax
+    xor rdx, rdx
+
+    push r9
+    xor r9, r9
+
+    mov rax, %1
+    mov rcx, %2
+
+    div r9
+
+    pop r9
+
+%endmacro
+
+;Function prologue should be called at the start of every subroutine, handles the creation of a stack frame
+;Pushes all callee reserved Registers
+;Combined with func_epilogue the stack should be in the same state it was in when the subroutine was started eg rsp rbp should be unchanged
+%macro func_prologue
+
+%endmacro
 ;==========================================================================================
 ;Section Declarations
 ;==========================================================================================
@@ -133,17 +166,113 @@ _dot:
     addps xmm0, xmm2 ;sum two results
 
     ret
+
+ ;Prints a single character stored in the lowest byte of rax (al)
+_RAXprint_char:
+    
+    push rsi  ;Preserve rsi
+    push rcx  ;Preserve rcx
+    push rax  ;Push char onto stack
     
     
+    xor rsi, rsi
+
+    mov rax, 1   ;id of sys_write
+    mov rdi, 1   ;id of std_out
+    mov rsi, rsp ;Move the value at the head of the stack into rsi
+    mov rdx, 1   ;Length of buffer
+
+    syscall
+
+    
+    pop rax
+    pop rcx
+    pop rsi
+
+    ret
+
+;Converts a digit in al to its ascii value stored in al
+;Modifies lowest byte of rax
+;Must be a single byte
+_ALDigit_to_ascii:
+
+    add al, byte 48
+    ret
+
+_R8print_number:
+    ;Convert a number in R8 to its ascii counterpart, store in rax
+    ;This will involve aquiring each digit, and converting each into its ascii byte value
+    ;I'll store each ascii digit on the stack, then I'll pop them all off for Printing
+    ;Rcx will be a counter of the number of stack items
+
+    ;Create stack frame
+    push rbx
+
+    push rcx
+    xor rcx, rcx  ;Set counter to zero
+
+    ;Initialize Registers
+    xor rax, rax
+    xor rdx, rdx
+    mov rax, r8 
+    
+    _divloop:
+
+        cmp rax, 0 ;Have finished processing digits onto stack
+        jz _printloop
+
+        mov r10, 10
+        div r10        ;Divides rax by 10, stores quotient in rax, stores remainder in rdx
+
+
+        push rdx      ;Pushes the last digit onto the stack
+
+        inc rcx ;Increment the counter
+
+
+
+        jmp _divloop
+
+
+
+
+    ;Once the number is converte
+
+    _printloop:
+        cmp rcx, 0
+        jz _end
+        xor r8, r8 ;We will use r8 as a temp register for Printing
+        pop r8     ;Pop current digit of the stack into r8
+        print_char r8b ;Print the current char
+        dec rcx
+
+        jmp _printloop
+
+
+    _end:
+
+    pop rcx
+    pop rsp ;Pop rbx's value into rsp
+    ret
+
+
+
+
 ;===========================        
 ;== Execution Entry Point ==
 ;===========================
 
 _start:
     
-    print_str entry_text
-    get_input buf, 1000
-    print_str buf
-    index_token buf, byte 32 ;Index the space character
+    ; print_str entry_text
+    ; get_input buf, 1000
+    ; index_token buf, byte 32 ;Index the space character
 
+    ; u_div 100, 25
+    ; u_div 99, 1
+    ; u_div 3, 2
+    ; u_div 20, 10
+
+    mov r8, 125
+    call _R8print_number
     exit 0
