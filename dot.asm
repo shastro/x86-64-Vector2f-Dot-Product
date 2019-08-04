@@ -96,6 +96,14 @@ BUFLEN equ 1000
     pop rbp
     pop rbx
 %endmacro
+
+;Printing an unsigned integer
+%macro p_uint 1
+    push r8
+    mov r8, %1
+    call _R8print_number
+    pop r8
+%endmacro
 ;==========================================================================================
 ;Section Declarations
 ;==========================================================================================
@@ -225,7 +233,7 @@ _R8print_number:
     ;Rcx will be a counter of the number of stack items
 
     ;Create stack frame
-    ;push rbx
+    push_callees
 
     push rcx
     xor rcx, rcx  ;Set counter to zero
@@ -256,14 +264,14 @@ _R8print_number:
 
 
 
-    ;Once the number is converte
+    ;Once the number is converted
 
     _printloop:
         cmp rcx, 0
         jz _end
         xor r8, r8 ;We will use r8 as a temp register for Printing
         pop r8     ;Pop current digit of the stack into r8
-        print_char r8b ;Print the current char
+        print_char r8b ;Print the current char (macro call)
         dec rcx
 
         jmp _printloop
@@ -272,7 +280,7 @@ _R8print_number:
     _end:
 
     pop rcx
-    ;pop rsp ;Pop rbx's value into rsp
+    pop_callees
     ret
 
 
@@ -293,9 +301,9 @@ _start:
     ; u_div 3, 2
     ; u_div 20, 10
 
-    mov r8, 125
-    call _R8print_number
+    p_uint 123456789101110123
 
+    movaps xmm0, 1.034
     ; mov rax, 12
     ; mov rdx, 0
     ; mov rdi,10
